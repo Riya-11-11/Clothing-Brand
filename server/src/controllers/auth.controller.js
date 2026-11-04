@@ -2,6 +2,8 @@ import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import config from "../config/config.js";
+import Session from "../models/session.model.js";
+import crypto from "node:crypto";
 
 export async function registerUser(req, res) {
   try {
@@ -80,9 +82,39 @@ export async function loginUser(req, res) {
       });
     }
 
-    const accessToken = jwt.sign({ userId: user._id }, config.JWT_SECRET, {
-      expiresIn: "15m",
+    const accessToken = jwt.sign(
+      { userId: user._id },
+      config.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: "15m",
+      },
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      config.REFRESH_TOKEN_SECRET,
+      {
+        expiresIn: "7d",
+      },
+    );
+
+    const hashedRefreshToken = crypto
+      .createHash("sha256")
+      .update(refreshToken)
+      .digest("hex");
+
+    await Session.create({
+      userId: user._id,
+      refreshTokenHash: hashedRefreshToken,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
+
+res.cookie("refreshToken", refreshToken, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
 
     res.status(200).json({
       success: true,
@@ -99,6 +131,37 @@ export async function loginUser(req, res) {
     return res.status(500).json({
       success: false,
       message: "Error in logging account",
+      error: error.message,
+    });
+  }
+}
+
+export async function getProfile(req, res) {
+  try {
+    const userId = req.user.userId; //we are extraction id from jwt payload
+
+    const userDetails = await User.findById(userId);
+
+    if (!userDetails) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User details fetched successfully!!!",
+      data: {
+        name: userDetails.name,
+        email: userDetails.email,
+        role: userDetails.role,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
       error: error.message,
     });
   }

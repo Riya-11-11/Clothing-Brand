@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { loginUser, registerUser } from "../controllers/auth.controller.js";
+import { loginUser, registerUser, getProfile } from "../controllers/auth.controller.js";
+import { verifyToken } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -18,5 +19,13 @@ router.post("/register", registerUser);
  */
 
 router.get("/login", loginUser);
+
+/**
+ * @route GET /api/auth/profile
+ * @desc Get user profile
+ * @access Private
+ */
+
+router.get("/profile", verifyToken, getProfile);
 
 export default router;
