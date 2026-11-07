@@ -13,12 +13,12 @@ const router = Router();
 router.post("/register", registerUser);
 
 /**
- * @route GET /api/auth/login
+ * @route POST /api/auth/login
  * @desc Login a new user
  * @access Public
  */
 
-router.get("/login", loginUser);
+router.post("/login", loginUser);
 
 /**
  * @route GET /api/auth/profile
