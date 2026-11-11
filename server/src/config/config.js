@@ -8,4 +8,7 @@ const config = {
   REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET,
 };
 
+console.log("Access secret loaded:", !!config.ACCESS_TOKEN_SECRET);
+console.log("Refresh secret loaded:", !!config.REFRESH_TOKEN_SECRET);
+
 export default config;

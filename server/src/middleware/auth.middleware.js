@@ -1,4 +1,4 @@
-import { config } from "dotenv";
+import config from "../config/config.js";
 import jwt from "jsonwebtoken";
 
 export function verifyToken(req, res, next) {
@@ -23,6 +23,7 @@ export function verifyToken(req, res, next) {
   const token = parts[1]; //0th -> Bearer 1st -> actual access token
 
   try {
+    console.log("Middleware secret loaded:", !!config.ACCESS_TOKEN_SECRET);
     const decoded = jwt.verify(token, config.ACCESS_TOKEN_SECRET);
     req.user = decoded; //attach user info
     next();
