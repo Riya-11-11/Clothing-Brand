@@ -109,12 +109,12 @@ export async function loginUser(req, res) {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
 
-res.cookie("refreshToken", refreshToken, {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-});
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     res.status(200).json({
       success: true,
@@ -162,6 +162,70 @@ export async function getProfile(req, res) {
     return res.status(500).json({
       success: false,
       message: "Internal server error",
+    });
+  }
+}
+
+export async function refreshAccessToken(req, res) {
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(401).json({
+      success: false,
+      message: "Refresh token is required",
+    });
+  }
+
+  try {
+    // Step 1: Verify refresh token
+    const decoded = jwt.verify(refreshToken, config.REFRESH_TOKEN_SECRET);
+
+    // Step 2: Generate hash of refresh token
+    const hashedRefreshToken = crypto
+      .createHash("sha256")
+      .update(refreshToken)
+      .digest("hex");
+
+    // Step 3: Find an active session
+    const session = await Session.findOne({
+      refreshTokenHash: hashedRefreshToken,
+      revokedAt: null,
+      expiresAt: { $gt: new Date() },
+    });
+
+    // Step 4: Check whether session exists
+    if (!session) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired refresh token",
+      });
+    }
+
+    // Step 5: Verify user ID
+    if (decoded.userId !== session.userId.toString()) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid refresh token",
+      });
+    }
+
+    // Step 6: Generate a new access token
+    const accessToken = jwt.sign(
+      { userId: session.userId },
+      config.ACCESS_TOKEN_SECRET,
+      { expiresIn: "15m" },
+    );
+
+    // Step 7: Send access token to frontend
+    return res.status(200).json({
+      success: true,
+      message: "Access token refreshed successfully",
+      accessToken,
+    });
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired refresh token",
     });
   }
 }
