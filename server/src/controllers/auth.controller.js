@@ -229,3 +229,61 @@ export async function refreshAccessToken(req, res) {
     });
   }
 }
+
+export async function logoutUser(req, res) {
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(401).json({
+      success: false,
+      message: "Refresh token is required",
+    });
+  }
+
+  try {
+    // Step 1: Verify refresh token
+    jwt.verify(refreshToken, config.REFRESH_TOKEN_SECRET);
+
+    // Step 2: Generate hash of refresh token
+    const hashedRefreshToken = crypto
+      .createHash("sha256")
+      .update(refreshToken)
+      .digest("hex");
+
+    // Step 3: Find and revoke the session
+    const session = await Session.findOne({
+      refreshTokenHash: hashedRefreshToken,
+      revokedAt: null,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!session) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired refresh token",
+      });
+    }
+
+    // Step 4: Revoke the session
+    session.revokedAt = new Date();
+    await session.save();
+
+    // Step 5: Clear the refresh token cookie
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "User logged out successfully",
+    });
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired refresh token",
+    });
+  }
+}

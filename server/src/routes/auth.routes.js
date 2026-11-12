@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loginUser, registerUser, getProfile, refreshAccessToken } from "../controllers/auth.controller.js";
+import { loginUser, registerUser, getProfile, refreshAccessToken, logoutUser } from "../controllers/auth.controller.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 
 const router = Router();
@@ -35,5 +35,13 @@ router.get("/profile", verifyToken, getProfile);
  */
 
 router.post("/refresh-token", refreshAccessToken);
+
+/**
+ * @route POST /api/auth/logout
+ * @desc Logout existing user
+ * @access Private
+ */
+
+router.post("/logout", verifyToken, logoutUser);
 
 export default router;
