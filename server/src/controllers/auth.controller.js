@@ -180,7 +180,7 @@ export async function refreshAccessToken(req, res) {
     // Step 1: Verify refresh token
     const decoded = jwt.verify(refreshToken, config.REFRESH_TOKEN_SECRET);
 
-    // Step 2: Generate hash of refresh token
+    // Step 2: Generate hash of old refresh token
     const hashedRefreshToken = crypto
       .createHash("sha256")
       .update(refreshToken)
@@ -216,10 +216,32 @@ export async function refreshAccessToken(req, res) {
       { expiresIn: "15m" },
     );
 
-    // Step 7: Send access token to frontend
+    // Step 7: Generate a new refresh token
+    const newRefreshToken = jwt.sign(
+      { userId: session.userId },
+      config.REFRESH_TOKEN_SECRET,
+      { expiresIn: "7d" },
+    );
+
+    // Step 8: Generate hash of new refresh token
+    const newHashedRefreshToken = crypto
+      .createHash("sha256")
+      .update(newRefreshToken)
+      .digest("hex");
+
+    session.refreshTokenHash = newHashedRefreshToken;
+    await session.save();
+
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     return res.status(200).json({
       success: true,
-      message: "Access token refreshed successfully",
+      message: "Access token and refresh token generated successfully",
       accessToken,
     });
   } catch (error) {

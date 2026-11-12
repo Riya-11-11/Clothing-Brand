@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { loginUser, registerUser, getProfile, refreshAccessToken, logoutUser } from "../controllers/auth.controller.js";
-import { verifyToken } from "../middleware/auth.middleware.js";
+import { verifyToken, authorizeAdmin } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -43,5 +43,7 @@ router.post("/refresh-token", refreshAccessToken);
  */
 
 router.post("/logout", verifyToken, logoutUser);
+
+
 
 export default router;
