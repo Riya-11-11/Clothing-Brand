@@ -229,8 +229,30 @@ export async function refreshAccessToken(req, res) {
       .update(newRefreshToken)
       .digest("hex");
 
-    session.refreshTokenHash = newHashedRefreshToken;
-    await session.save();
+    const updatedSession = await Session.findOneAndUpdate(
+      {
+        _id: session._id,
+        refreshTokenHash: hashedRefreshToken,
+        revokedAt: null,
+        expiresAt: { $gt: new Date() },
+      },
+      {
+        $set: {
+          refreshTokenHash: newHashedRefreshToken,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    if (!updatedSession) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired refresh token",
+      });
+    }
 
     res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
