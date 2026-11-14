@@ -1,7 +1,10 @@
 import uploadToCloudinary from "../utils/uploadToCloudinary.js";
 import Product from "../models/Product.js";
+import cloudinary from "../config/cloudinary.js";
 
 export async function createProduct(req, res) {
+  let uploadedImages = [];
+
   try {
     const { name, slug, description, category, gender, variants } = req.body;
 
@@ -28,7 +31,7 @@ export async function createProduct(req, res) {
       });
     }
 
-    const uploadedImages = await Promise.all(
+    uploadedImages = await Promise.all(
       uploadFiles.map((image) => uploadToCloudinary(image.buffer)),
     );
 
@@ -48,13 +51,23 @@ export async function createProduct(req, res) {
       images,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Product created successfully",
       data: product,
     });
   } catch (error) {
     console.error("Create product error:", error);
+
+    if (uploadedImages.length > 0) {
+      const cleanupResults = await Promise.allSettled(
+        uploadedImages.map((image) =>
+          cloudinary.uploader.destroy(image.publicId),
+        ),
+      );
+
+      console.log("Cloudinary cleanup results:", cleanupResults);
+    }
 
     return res.status(500).json({
       success: false,
