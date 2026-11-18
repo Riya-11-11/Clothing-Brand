@@ -173,3 +173,32 @@ export async function getAllProducts(req, res) {
     });
   }
 }
+
+export async function getSingleProduct(req, res) {
+  try {
+    const slug = req.params.slug;
+    const product = await Product.findOne({
+      slug: slug,
+      status: "active",
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: true,
+        message: "No active products found with this name",
+        data: [],
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Your product fetched successfully!!!",
+      data: product,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching your product",
+    });
+  }
+}

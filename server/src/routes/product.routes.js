@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createProduct,
   getAllProducts,
+  getSingleProduct,
 } from "../controllers/product.controller.js";
 
 import upload from "../middleware/upload.middleware.js";
@@ -30,5 +31,13 @@ router.post(
  */
 
 router.get("/allProducts", getAllProducts);
+
+/**
+ * @route GET /api/products/:slug
+ * @desc Fetch a product
+ * @access public
+ */
+
+router.get("/:slug", getSingleProduct);
 
 export default router;
