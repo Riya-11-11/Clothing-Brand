@@ -2,8 +2,9 @@ import config from "../config/config.js";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
 
+// 1. Verify Access Token
 export function verifyToken(req, res, next) {
-  const authHeader = req.headers.authorization; //give value of Authorization header
+  const authHeader = req.headers.authorization;
 
   if (!authHeader) {
     return res.status(401).json({
@@ -14,19 +15,21 @@ export function verifyToken(req, res, next) {
 
   const parts = authHeader.split(" ");
 
-  if (parts[0] !== "Bearer" || !parts[1]) {
+  if (parts.length !== 2 || parts[0] !== "Bearer" || !parts[1]) {
     return res.status(401).json({
       success: false,
       message: "Invalid authorization header",
     });
   }
 
-  const token = parts[1]; //0th -> Bearer 1st -> actual access token
+  const token = parts[1];
 
   try {
     const decoded = jwt.verify(token, config.ACCESS_TOKEN_SECRET);
-    req.user = decoded; //attach user info
-    next();
+
+    req.user = decoded;
+
+    return next();
   } catch (error) {
     return res.status(401).json({
       success: false,
@@ -35,21 +38,37 @@ export function verifyToken(req, res, next) {
   }
 }
 
+// 2. Authorize Admin
 export async function authorizeAdmin(req, res, next) {
   try {
+    if (!req.user?.userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
     const user = await User.findById(req.user.userId);
 
-    if (!user || user.role !== "admin") {
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.role !== "admin") {
       return res.status(403).json({
         success: false,
         message: "Access denied. Admin privileges required.",
       });
     }
 
-    next();
-    
+    return next();
   } catch (error) {
-    return res.status(403).json({
+    console.error("Admin authorization error:", error);
+
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
     });

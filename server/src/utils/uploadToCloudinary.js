@@ -10,7 +10,7 @@ import { Readable } from "stream";
 
 async function uploadToCloudinary(fileBuffer) {
   return new Promise((resolve, reject) => {
-    const stream = Readable.from(fileBuffer);
+    const stream = Readable.from([fileBuffer]);
 
     const uploadStream = cloudinary.uploader.upload_stream(
       { folder: "products" },
