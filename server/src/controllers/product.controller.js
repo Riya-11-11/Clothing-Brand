@@ -185,7 +185,7 @@ export async function getSingleProduct(req, res) {
     if (!product) {
       return res.status(404).json({
         success: true,
-        message: "No active products found with this name",
+        message: "No active product found with this name",
         data: [],
       });
     }
@@ -199,6 +199,49 @@ export async function getSingleProduct(req, res) {
     return res.status(500).json({
       success: false,
       message: "An error occurred while fetching your product",
+    });
+  }
+}
+
+export async function updateProduct(req, res) {
+  try {
+    const id = req.params.id;
+
+    const { name, description, category, gender, status } = req.body;
+
+    // Include only the fields provided by the admin
+    const updates = {};
+
+    if (name !== undefined) updates.name = name;
+    if (description !== undefined) updates.description = description;
+    if (category !== undefined) updates.category = category;
+    if (gender !== undefined) updates.gender = gender;
+    if (status !== undefined) updates.status = status;
+
+    // Update product in MongoDB
+    const product = await Product.findByIdAndUpdate(id, updates, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Product data updated successfully",
+      data: product,
+    });
+  } catch (error) {
+    console.error("Update product error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Error while updating product data",
     });
   }
 }
