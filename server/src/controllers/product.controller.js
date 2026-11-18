@@ -149,6 +149,27 @@ export async function createProduct(req, res) {
   }
 }
 
-export async function getAllProducts(params) {
-  
+export async function getAllProducts(req, res) {
+  try {
+    const products = await Product.find({ status: "active" });
+
+    if (products.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No active products found",
+        data: [],
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "All products fetched successfully!!!",
+      data: products,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching products",
+    });
+  }
 }
