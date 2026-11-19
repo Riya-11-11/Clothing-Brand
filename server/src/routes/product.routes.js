@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createProduct,
+  deleteProduct,
   getAllProducts,
   getSingleProduct,
   updateProduct,
@@ -53,6 +54,19 @@ router.patch(
   authorizeAdmin,
   upload.array("images", 5),
   updateProduct,
+);
+
+/**
+ * @route DELETE /api/products/deleteProduct/:id
+ * @desc Delete a product
+ * @access Private (Admin only)
+ */
+
+router.delete(
+  "/deleteProduct/:id",
+  verifyToken,
+  authorizeAdmin,
+  deleteProduct,
 );
 
 export default router;

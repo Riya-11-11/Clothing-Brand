@@ -218,6 +218,13 @@ export async function updateProduct(req, res) {
     if (gender !== undefined) updates.gender = gender;
     if (status !== undefined) updates.status = status;
 
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide at least one field to update",
+      });
+    }
+
     // Update product in MongoDB
     const product = await Product.findByIdAndUpdate(id, updates, {
       new: true,
@@ -237,11 +244,67 @@ export async function updateProduct(req, res) {
       data: product,
     });
   } catch (error) {
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid ID format",
+      });
+    }
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product data",
+      });
+    }
+
     console.error("Update product error:", error);
 
     return res.status(500).json({
       success: false,
       message: "Error while updating product data",
+    });
+  }
+}
+
+export async function deleteProduct(req, res) {
+  try {
+    const id = req.params.id;
+
+    const product = await Product.findByIdAndUpdate(
+      id,
+      { status: "archived" },
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Product archived successfully",
+      data: product,
+    });
+  } catch (error) {
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid ID format",
+        error: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Error while deleting product data",
+      error: error.message,
     });
   }
 }
