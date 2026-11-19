@@ -275,7 +275,7 @@ export async function deleteProduct(req, res) {
       id,
       { status: "archived" },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       },
     );
