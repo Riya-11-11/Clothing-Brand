@@ -303,7 +303,7 @@ export async function deleteProduct(req, res) {
 
     return res.status(500).json({
       success: false,
-      message: "Error while deleting product data",
+      message: "Error while archiving product",
       error: error.message,
     });
   }
