@@ -154,6 +154,8 @@ export async function getAllProducts(req, res) {
     const page = req.query.page === undefined ? 1 : Number(req.query.page);
     const limit = req.query.limit === undefined ? 10 : Number(req.query.limit);
 
+    const search = req.query.search?.trim() || "";
+
     if (
       !Number.isInteger(page) || //checks for whole number
       !Number.isInteger(limit) || //checks for whole number
@@ -175,13 +177,21 @@ export async function getAllProducts(req, res) {
 
     const skip = (page - 1) * limit;
 
-    const products = await Product.find({ status: "active" })
-      .skip(skip)
-      .limit(limit);
-
-    const totalProducts = await Product.countDocuments({
+    const filter = {
       status: "active",
-    });
+    };
+
+    if (search) {
+      //checks whether the customer entered a search keyword.
+      filter.name = {
+        $regex: search, //searches for a matching pattern in the product name.
+        $options: "i", //makes the search case-insensitive.
+      };
+    }
+
+    const products = await Product.find(filter).skip(skip).limit(limit);
+
+    const totalProducts = await Product.countDocuments(filter);
 
     const totalPages = Math.ceil(totalProducts / limit);
 
