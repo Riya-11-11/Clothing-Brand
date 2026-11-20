@@ -155,6 +155,12 @@ export async function getAllProducts(req, res) {
     const limit = req.query.limit === undefined ? 10 : Number(req.query.limit);
 
     const search = req.query.search?.trim() || "";
+    const category = req.query.category?.trim() || "";
+    const gender = req.query.gender?.trim() || "";
+    const minPrice =
+      req.query.minPrice === undefined ? undefined : Number(req.query.minPrice);
+    const maxPrice =
+      req.query.maxPrice === undefined ? undefined : Number(req.query.maxPrice);
 
     if (
       !Number.isInteger(page) || //checks for whole number
@@ -175,6 +181,19 @@ export async function getAllProducts(req, res) {
       });
     }
 
+    if (
+      (minPrice !== undefined &&
+        (!Number.isFinite(minPrice) || minPrice < 0)) ||
+      (maxPrice !== undefined &&
+        (!Number.isFinite(maxPrice) || maxPrice < 0)) ||
+      (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid price range",
+      });
+    }
+
     const skip = (page - 1) * limit;
 
     const filter = {
@@ -184,10 +203,43 @@ export async function getAllProducts(req, res) {
     if (search) {
       //checks whether the customer entered a search keyword.
       filter.name = {
-        $regex: search, //searches for a matching pattern in the product name.
+        $regex: search, //searches for a matching pattern in the product name. PARTIAL MATCH
         $options: "i", //makes the search case-insensitive.
       };
     }
+
+    if (category) {
+      filter.category = {
+        $regex: `^${category}$`, // Search for exact match
+        $options: "i",
+      };
+    }
+    if (gender) {
+      filter.gender = {
+        $regex: `^${gender}$`,
+        $options: "i",
+      };
+    }
+
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      const priceFilter = {};
+
+      if (minPrice !== undefined) {
+        priceFilter.$gte = minPrice;
+      }
+
+      if (maxPrice !== undefined) {
+        priceFilter.$lte = maxPrice;
+      }
+
+      filter.variants = {
+        $elemMatch: {
+          price: priceFilter,
+        },
+      };
+    }
+
+    console.log("MongoDB Filter:", JSON.stringify(filter, null, 2));
 
     const products = await Product.find(filter).skip(skip).limit(limit);
 
