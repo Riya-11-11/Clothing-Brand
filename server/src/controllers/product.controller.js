@@ -151,20 +151,64 @@ export async function createProduct(req, res) {
 
 export async function getAllProducts(req, res) {
   try {
-    const products = await Product.find({ status: "active" });
+    const page = req.query.page === undefined ? 1 : Number(req.query.page);
+    const limit = req.query.limit === undefined ? 10 : Number(req.query.limit);
+
+    if (
+      !Number.isInteger(page) || //checks for whole number
+      !Number.isInteger(limit) || //checks for whole number
+      page < 1 ||
+      limit < 1
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Page and limit must be positive integers",
+      });
+    }
+
+    if (limit > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Maximum limit allowed is 100",
+      });
+    }
+
+    const skip = (page - 1) * limit;
+
+    const products = await Product.find({ status: "active" })
+      .skip(skip)
+      .limit(limit);
+
+    const totalProducts = await Product.countDocuments({
+      status: "active",
+    });
+
+    const totalPages = Math.ceil(totalProducts / limit);
 
     if (products.length === 0) {
       return res.status(200).json({
         success: true,
-        message: "No active products found",
+        message: "No products found on this page",
         data: [],
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalProducts,
+          limit,
+        },
       });
     }
 
     res.status(200).json({
       success: true,
-      message: "All products fetched successfully!!!",
+      message: "All products fetched successfully",
       data: products,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalProducts,
+        limit,
+      },
     });
   } catch (error) {
     return res.status(500).json({
