@@ -413,8 +413,9 @@ export async function updateProduct(req, res) {
   try {
     const id = req.params.id;
 
-    const { name, description, category, gender, status } = req.body;
-
+    const { name, description, category, gender, status, variants } = req.body;
+console.log("Request body:", req.body);
+console.log("Variants:", variants);
     // Include only the fields provided by the admin
     const updates = {};
 
@@ -424,6 +425,47 @@ export async function updateProduct(req, res) {
     if (gender !== undefined) updates.gender = gender;
     if (status !== undefined) updates.status = status;
 
+    // Handle variant updates
+    if (variants !== undefined) {
+      let parsedVariants;
+
+      try {
+        parsedVariants =
+          typeof variants === "string" ? JSON.parse(variants) : variants;
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid variants format",
+        });
+      }
+
+      // Check whether variants is a non-empty array
+      if (!Array.isArray(parsedVariants) || parsedVariants.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "At least one valid variant is required",
+        });
+      }
+
+      // Check whether every array element is an object
+      const isValidVariants = parsedVariants.every(
+        (variant) =>
+          variant !== null &&
+          typeof variant === "object" &&
+          !Array.isArray(variant),
+      );
+
+      if (!isValidVariants) {
+        return res.status(400).json({
+          success: false,
+          message: "Each variant must be a valid object",
+        });
+      }
+
+      updates.variants = parsedVariants;
+    }
+
+    // Check whether any field was provided
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({
         success: false,
@@ -433,7 +475,7 @@ export async function updateProduct(req, res) {
 
     // Update product in MongoDB
     const product = await Product.findByIdAndUpdate(id, updates, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
 
