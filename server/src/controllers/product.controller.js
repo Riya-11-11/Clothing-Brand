@@ -151,20 +151,29 @@ export async function createProduct(req, res) {
 
 export async function getAllProducts(req, res) {
   try {
+    // 1. Read query parameters
     const page = req.query.page === undefined ? 1 : Number(req.query.page);
     const limit = req.query.limit === undefined ? 10 : Number(req.query.limit);
 
     const search = req.query.search?.trim() || "";
     const category = req.query.category?.trim() || "";
     const gender = req.query.gender?.trim() || "";
+    const size = req.query.size?.trim() || "";
+    const color = req.query.color?.trim() || "";
+
+    const sort = req.query.sort || "newest";
+    const availability = req.query.availability?.trim() || "";
+
     const minPrice =
       req.query.minPrice === undefined ? undefined : Number(req.query.minPrice);
+
     const maxPrice =
       req.query.maxPrice === undefined ? undefined : Number(req.query.maxPrice);
 
+    // 2. Validate pagination
     if (
-      !Number.isInteger(page) || //checks for whole number
-      !Number.isInteger(limit) || //checks for whole number
+      !Number.isInteger(page) ||
+      !Number.isInteger(limit) ||
       page < 1 ||
       limit < 1
     ) {
@@ -181,6 +190,7 @@ export async function getAllProducts(req, res) {
       });
     }
 
+    // 3. Validate price range
     if (
       (minPrice !== undefined &&
         (!Number.isFinite(minPrice) || minPrice < 0)) ||
@@ -194,29 +204,67 @@ export async function getAllProducts(req, res) {
       });
     }
 
+    // 4. Validate availability
+    const allowedAvailability = ["in_stock", "out_of_stock"];
+
+    if (availability && !allowedAvailability.includes(availability)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid availability option",
+      });
+    }
+
+    // 5. Validate sorting
+    const allowedSortOptions = ["newest", "oldest", "price_asc", "price_desc"];
+
+    if (!allowedSortOptions.includes(sort)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid sorting option",
+      });
+    }
+
     const skip = (page - 1) * limit;
 
+    // 6. Build product filter
     const filter = {
       status: "active",
     };
 
     if (search) {
-      //checks whether the customer entered a search keyword.
       filter.name = {
-        $regex: search, //searches for a matching pattern in the product name. PARTIAL MATCH
-        $options: "i", //makes the search case-insensitive.
+        $regex: search,
+        $options: "i",
       };
     }
 
     if (category) {
       filter.category = {
-        $regex: `^${category}$`, // Search for exact match
+        $regex: `^${category}$`,
         $options: "i",
       };
     }
+
     if (gender) {
       filter.gender = {
         $regex: `^${gender}$`,
+        $options: "i",
+      };
+    }
+
+    // 7. Build variant filter
+    const variantFilter = {};
+
+    if (size) {
+      variantFilter.size = {
+        $regex: `^${size}$`,
+        $options: "i",
+      };
+    }
+
+    if (color) {
+      variantFilter.color = {
+        $regex: `^${color}$`,
         $options: "i",
       };
     }
@@ -232,21 +280,70 @@ export async function getAllProducts(req, res) {
         priceFilter.$lte = maxPrice;
       }
 
+      variantFilter.price = priceFilter;
+    }
+
+    // 8. Apply stock availability filtering
+    if (availability === "in_stock") {
+      variantFilter.stock = {
+        $gt: 0,
+      };
+    }
+
+    // Apply size, colour, price and in-stock conditions together
+    if (Object.keys(variantFilter).length > 0) {
       filter.variants = {
-        $elemMatch: {
-          price: priceFilter,
+        $elemMatch: variantFilter,
+      };
+    }
+
+    // Out-of-stock: no variant has stock greater than zero
+    if (availability === "out_of_stock") {
+      filter["variants.stock"] = {
+        $not: {
+          $gt: 0,
         },
       };
     }
 
-    console.log("MongoDB Filter:", JSON.stringify(filter, null, 2));
+    // 9. Build sorting options
+    const sortOptions = {};
 
-    const products = await Product.find(filter).skip(skip).limit(limit);
+    switch (sort) {
+      case "price_asc":
+        sortOptions["variants.price"] = 1;
+        sortOptions._id = 1;
+        break;
 
+      case "price_desc":
+        sortOptions["variants.price"] = -1;
+        sortOptions._id = 1;
+        break;
+
+      case "oldest":
+        sortOptions.createdAt = 1;
+        sortOptions._id = 1;
+        break;
+
+      case "newest":
+      default:
+        sortOptions.createdAt = -1;
+        sortOptions._id = 1;
+        break;
+    }
+
+    // 10. Fetch products
+    const products = await Product.find(filter)
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(limit);
+
+    // 11. Count matching products
     const totalProducts = await Product.countDocuments(filter);
 
     const totalPages = Math.ceil(totalProducts / limit);
 
+    // 12. Handle empty results
     if (products.length === 0) {
       return res.status(200).json({
         success: true,
@@ -261,7 +358,8 @@ export async function getAllProducts(req, res) {
       });
     }
 
-    res.status(200).json({
+    // 13. Send response
+    return res.status(200).json({
       success: true,
       message: "All products fetched successfully",
       data: products,
@@ -273,6 +371,8 @@ export async function getAllProducts(req, res) {
       },
     });
   } catch (error) {
+    console.error("Get all products error:", error);
+
     return res.status(500).json({
       success: false,
       message: "An error occurred while fetching products",
